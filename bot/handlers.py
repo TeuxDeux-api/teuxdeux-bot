@@ -36,16 +36,19 @@ async def text_handler(message: types.Message):
         await message.answer(text, parse_mode="html", reply_markup=todo_menu(todos["todos"]))
 
 
-async def new_task_handler(message: types.Message):
-    task = {
-        "text": message.text,
-        "current_date": str(datetime.strftime(datetime.now(), "%Y-%m-%d")),
-        "done": False,
-        "list_id": None
-    }
-    new_task(task)
-
-    await message.answer("Task saved")
+async def new_task_handler(message: types.Message, state: FSMContext):
+    try:
+        task = {
+            "text": message.text,
+            "current_date": str(datetime.strftime(datetime.now(), "%Y-%m-%d")),
+            "done": False,
+            "list_id": 3254723
+        }
+        text = new_task(task)
+        await message.answer(text)
+        await state.finish()
+    except Exception as e:
+        loguru.logger.error(str(e))
 
 
 async def todo_callback_handler(query: types.CallbackQuery, state: FSMContext):
@@ -68,7 +71,6 @@ async def todo_callback_handler(query: types.CallbackQuery, state: FSMContext):
 
 async def todo_submenu_callback_handler(query: types.CallbackQuery, state: FSMContext):
     try:
-        print()
         id, type = query.data.split(" ")
         if type == "done":
             data = {
