@@ -14,14 +14,20 @@ headers = {
 }
 
 
-def new_task(task: dict):
+def new_task(task: dict) -> list[str]:
 
     r = requests.post(
         "https://teuxdeux.com/api/v3/workspaces/584007/todos", data=json.dumps(task),
         headers=headers)
 
     print(r.json())
+    if r.status_code == 200:
+        response = [r.status_code, "Task saved"]
 
+    elif "errors" in r.json():
+        response = [r.status_code, r.json()["errors"][0]["message"]]
+
+    return response
     """{text: "Hello Mir", current_date: "2021-07-24", done: false, list_id: null}"""
 
 
