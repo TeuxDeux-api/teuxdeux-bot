@@ -9,7 +9,9 @@ from aiogram import Bot, Dispatcher
 from aiogram.contrib.fsm_storage.files import PickleStorage
 
 from bot.logger import logger_init
-from .handlers import new_task_handler, start_handler, text_handler, todo_callback_handler, todo_submenu_callback_handler
+from .handlers import authenticate_user, new_task_handler, start_handler, text_handler, todo_callback_handler, todo_submenu_callback_handler
+from client.queries import db
+
 
 # Load dotenv
 dotenv.load_dotenv()
@@ -25,11 +27,16 @@ async def main():
     # Initialize bot and dispatcher
     bot = Bot(token=os.getenv("API_TOKEN"))
     try:
-        dp = Dispatcher(bot, storage=PickleStorage("db"))
+        storage = PickleStorage("db.pickle")
+        dp = Dispatcher(bot, storage=storage)
         # start_handler register
         dp.register_message_handler(
             start_handler, commands={"start"}, state="*")
-        # # text_handler register
+        # Authentication menu register
+        dp.register_message_handler(
+            authenticate_user, state=States.auth_menu
+        )
+        # text_handler register
         dp.register_message_handler(
             text_handler, content_types="text")
         # register new_task_handler
@@ -43,4 +50,6 @@ async def main():
             todo_submenu_callback_handler, state=States.todo_submenu)
         await dp.start_polling()
     finally:
+        db.close()
+        await storage.close()
         await bot.close()
