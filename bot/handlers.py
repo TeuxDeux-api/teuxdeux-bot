@@ -4,7 +4,6 @@ from datetime import datetime
 import loguru
 from aiogram import types
 from aiogram.dispatcher.storage import FSMContext
-from aiogram.types import reply_keyboard, update
 from client.queries import (auth_user_query, db, delete_task, get_all_tasks, delete_task,
                             get_current_tasks, new_task, update_task)
 
@@ -17,7 +16,7 @@ async def start_handler(message: types.Message, state: FSMContext):
     This handler will be called when user sends `/start` command
     """
 
-    if db.llen(message.from_user.id) > 0:
+    if db.hexists(message.from_user.id, 'auth_token'):
 
         await state.finish()
         await message.answer("Hello", reply_markup=main_btn())
@@ -100,7 +99,7 @@ async def todo_submenu_callback_handler(query: types.CallbackQuery, state: FSMCo
             data = {
                 "done": 1
             }
-            update_task(int(id), data)
+            update_task(query.from_user.id, int(id), data)
             await state.finish()
             await query.message.edit_text("Task is done")
         elif type == "delete":
@@ -108,7 +107,20 @@ async def todo_submenu_callback_handler(query: types.CallbackQuery, state: FSMCo
             await state.finish()
             await query.message.edit_text("Task deleted")
         elif type == "update":
-            pass
-
+            global task_id
+            task_id = int(id)
+            await States.update_task.set()
+            await query.message.edit_text("Ok. Send me the new text")
     except Exception as e:
         loguru.logger.error(e)
+
+
+async def task_update_handler(message: types.Message, state: FSMContext):
+    try:
+        data = {
+            "text": message.text
+        }
+        update_task(message.from_user.id, task_id=task_id, opts=data)
+        await message.answer()
+    except Exception as e:
+        loguru.logger.debug(e)
