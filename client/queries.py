@@ -19,7 +19,7 @@ def _headers(user_id: int):
     try:
         if not user_id:
             raise None
-        auth_token = db.lindex(user_id, 0).decode()
+        auth_token = db.hget(user_id, 'auth_token').decode()
         headers = {
             "Authorization": f"Bearer {auth_token}",
             "Content-Type": "application/json"
@@ -34,9 +34,9 @@ def _make_request(method_name, method='get', params=None, data=None, custom_url=
         if "user_id" not in params:
             raise Exception("Not found user_id in params")
         user_id = params["user_id"]
-        if db.llen(user_id) <= 0:
+        if not db.hexists(user_id, 'auth_token'):
             raise Exception("Not found workspace in vedis")
-        workspace = db.lindex(user_id, 1).decode()
+        workspace = db.hget(user_id, 'workspace').decode()
         headers = _headers(user_id)
     if not custom_url:
         base_url = f"https://teuxdeux.com/api/v3/workspaces/{workspace}/{method_name}"
@@ -129,7 +129,7 @@ def get_all_tasks(user_id: int) -> dict:
     try:
         params = {"user_id": user_id}
 
-        workspace = db.lindex(user_id, 1).decode()
+        workspace = db.hget(user_id, 'workspace').decode()
 
         custom_path = f"https://teuxdeux.com/api/v3/workspaces/{workspace}/todos"
 
@@ -149,7 +149,7 @@ def get_current_tasks(user_id: int) -> list[dict]:
         today = str(datetime.strftime(datetime.now(), "%Y-%m-%d"))
         params = {"user_id": user_id}
 
-        workspace = db.lindex(user_id, 1).decode()
+        workspace = db.hget(user_id, 'workspace').decode()
 
         custom_path = f"https://teuxdeux.com/api/v3/workspaces/{workspace}?since={today}"
 
@@ -204,11 +204,11 @@ def auth_user_query(user_id: int, username: str, password: str):
                        headers=dict(Referer=login_url))
 
         # User's data list
-        user_data = db.List(user_id)
+        db.begin()
         # Get auth token from session cookies
         auth_token = s.cookies.get_dict()["_txdxtxdx_token"]
         # Save user auth token to db
-        user_data.append(auth_token)
+        db.hsetnx(user_id, 'auth_token', auth_token)
         # Parser the workspace id
         pwid = bs4.BeautifulSoup(p._content, 'html.parser')
         # Find the script from html response by id
@@ -217,14 +217,10 @@ def auth_user_query(user_id: int, username: str, password: str):
         # Decode json objects to dict
         json_object = json.loads(el.contents[0])
         # Save the worcspace id from json_object
-        user_data.append(json_object[0]["id"])
+        db.hsetnx(user_id, 'workspace', json_object[0]["id"])
+        db.commit()
 
         # Print to console the success status code
         loguru.logger.success(str(p.status_code))
     except Exception as e:
         loguru.logger.error(str(e))
-
-
-# auth_user_query("mirzohidovm8@gmail.com", "Qw3rtYmirsaid", 1355389870)
-
-todo = get_task_by_id(1355389870, 99187017)
