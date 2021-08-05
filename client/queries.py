@@ -1,13 +1,11 @@
 import sys
 import json
 from datetime import datetime
-from aiogram.types import base
 
 import bs4
 import dotenv
 import loguru
 import requests
-import pickle
 from vedis import Vedis
 
 db = Vedis("db", open_database=True)
@@ -57,8 +55,8 @@ def _make_request(method_name, method='get', params=None, data=None, custom_url=
     elif method == 'patch':
         if not data:
             raise Exception("Data not found for method patch")
-        r = requests.post(
-            base_url, data=data, headers=headers)
+        r = requests.patch(
+            base_url, data=json.dumps(data), headers=headers)
         if r.status_code == 200:
             response = [r.status_code, "Task updated"]
 
@@ -111,13 +109,13 @@ def update_task(user_id: int, task_id: int, opts: dict):
         if "done" in opts:
             method_url = f"/todos/{task_id}/state"
             method = 'post'
-        else:
-            method_url = f"/todos/{task_id}"
+        elif "text" in opts:
+            method_url = f"todos/{task_id}"
             method = 'patch'
         params = {"user_id": user_id}
 
         r = _make_request(method_name=method_url, method=method,
-                          data=json.dumps(opts), params=params)
+                          data=opts, params=params)
 
         loguru.logger.success(str(r))
         return r
