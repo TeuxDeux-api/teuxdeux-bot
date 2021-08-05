@@ -9,7 +9,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.contrib.fsm_storage.files import PickleStorage
 
 from bot.logger import logger_init
-from .handlers import authenticate_user, new_task_handler, start_handler, text_handler, todo_callback_handler, todo_submenu_callback_handler
+from .handlers import authenticate_user, new_task_handler, start_handler, task_update_handler, text_handler, todo_callback_handler, todo_submenu_callback_handler
 from client.queries import db
 
 
@@ -48,6 +48,9 @@ async def main():
         # todo submenu callback handler
         dp.register_callback_query_handler(
             todo_submenu_callback_handler, state=States.todo_submenu)
+        # task's text update handler
+        dp.register_message_handler(
+            task_update_handler, state=States.update_task)
         await dp.start_polling()
     finally:
         db.close()
