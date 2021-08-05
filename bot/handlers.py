@@ -7,7 +7,7 @@ from aiogram.dispatcher.storage import FSMContext
 from client.queries import (auth_user_query, db, delete_task, get_all_tasks, delete_task,
                             get_current_tasks, new_task, update_task)
 
-from bot.buttons import main_btn, todo_menu, todo_sub_menu
+from bot.buttons import back_btn, main_btn, todo_menu, todo_sub_menu
 from bot.states import States
 
 
@@ -91,6 +91,8 @@ async def todo_callback_handler(query: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         loguru.logger.error(e)
 
+task_id = []
+
 
 async def todo_submenu_callback_handler(query: types.CallbackQuery, state: FSMContext):
     try:
@@ -99,20 +101,19 @@ async def todo_submenu_callback_handler(query: types.CallbackQuery, state: FSMCo
             data = {
                 "done": 1
             }
-            update_task(query.from_user.id, int(id), data)
+            update_task(query.from_user.id, id, data)
             await state.finish()
-            await query.message.edit_text("Task is done")
+            await query.message.edit_text("Task is done", reply_markup=main_btn())
         elif type == "delete":
-            delete_task(query.from_user.id, int(id))
+            delete_task(query.from_user.id, id)
             await state.finish()
             await query.message.edit_text("Task deleted")
         elif type == "update":
-            global task_id
-            task_id = int(id)
+            task_id.append(int(id))
             await States.update_task.set()
             await query.message.edit_text("Ok. Send me the new text")
     except Exception as e:
-        loguru.logger.error(e)
+        loguru.logger.error(sys.exc_info())
 
 
 async def task_update_handler(message: types.Message, state: FSMContext):
@@ -120,7 +121,9 @@ async def task_update_handler(message: types.Message, state: FSMContext):
         data = {
             "text": message.text
         }
-        update_task(message.from_user.id, task_id=task_id, opts=data)
-        await message.answer()
+        print(task_id[0])
+        print(update_task(message.from_user.id, task_id=task_id[0], opts=data))
+        await state.finish()
+        await message.answer("Ok", reply_markup=main_btn())
     except Exception as e:
         loguru.logger.debug(e)
