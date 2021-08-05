@@ -30,7 +30,7 @@ def todo_menu(todos: dict) -> types.InlineKeyboardMarkup:
 def todo_sub_menu(todo: dict) -> types.InlineKeyboardMarkup:
     """Article menu"""
     menu = types.InlineKeyboardMarkup(row_width=2)
-    texts = ["✅ Done", "✏️ Update", "🗑 Delete"]
+    texts = ["✅ Done", "🔄 Update", "🗑 Delete"]
     buttons = []
     for text in texts:
         buttons.append(types.InlineKeyboardButton(
