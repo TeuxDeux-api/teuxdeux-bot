@@ -131,3 +131,6 @@ dmypy.json
 # File based Databases
 db
 db.pickle
+
+# Heroku files
+Procfile
