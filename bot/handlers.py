@@ -1,11 +1,11 @@
 import sys
-from datetime import datetime
+import datetime
 
 import loguru
 from aiogram import types
 from aiogram.dispatcher.storage import FSMContext
 from client.queries import (auth_user_query, db, delete_task, get_all_tasks, delete_task,
-                            get_current_tasks, new_task, update_task)
+                            get_current_tasks, get_task_by_id, new_task, update_task)
 
 from bot.buttons import back_btn, main_btn, todo_menu, todo_sub_menu
 from bot.states import States
@@ -62,7 +62,7 @@ async def new_task_handler(message: types.Message, state: FSMContext):
     try:
         task = {
             "text": message.text,
-            "current_date": str(datetime.strftime(datetime.now(), "%Y-%m-%d")),
+            "current_date": str(datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d")),
             "done": False,
             "list_id": None
         }
@@ -91,27 +91,61 @@ async def todo_callback_handler(query: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         loguru.logger.error(e)
 
+
 task_id = []
 
 
 async def todo_submenu_callback_handler(query: types.CallbackQuery, state: FSMContext):
     try:
         id, type = query.data.split(" ")
+
+        # Back to tasks menu
+        text = "\n\n"
+        todos = get_current_tasks(query.from_user.id)
+
+        for i, todo in enumerate(todos, 1):
+            if todo["done"]:
+                text += f"{i}. <u>{todo['text']}</u>\n"
+            else:
+                text += f"{i}. {todo['text']}\n"
+        button = todo_menu(todos)
+        text_lines = text.splitlines()
+        # end
+
         if type == "done":
             data = {
                 "done": 1
             }
             update_task(query.from_user.id, id, data)
-            await state.finish()
-            await query.message.edit_text("Task is done", reply_markup=main_btn())
+            await States.my_tasks.set()
+            text_lines[0] += "<b>Task is done</b>"
+
+            await query.message.edit_text('\n'.join(text_lines),
+                                          parse_mode="HTML", reply_markup=button)
         elif type == "delete":
             delete_task(query.from_user.id, id)
-            await state.finish()
-            await query.message.edit_text("Task deleted")
+            await States.my_tasks.set()
+            text_lines[0] += "<b>Task deleted</b>"
+            await query.message.edit_text('\n'.join(text_lines),
+                                          parse_mode="HTML", reply_markup=button)
         elif type == "update":
             task_id.append(int(id))
             await States.update_task.set()
             await query.message.edit_text("Ok. Send me the new text")
+        elif type == "postpone":
+            data = {
+                "current_date": str(datetime.date.today() + datetime.timedelta(days=1)),
+                "position": 0
+            }
+            response = update_task(query.from_user.id, id, data)
+            if 200 in response:
+                await States.my_tasks.set()
+                text_lines[0] += "<b>Task postponed to tomorrow</b>"
+                await query.message.edit_text('\n'.join(text_lines),
+                                              parse_mode="HTML", reply_markup=button)
+            else:
+                await state.finish()
+                await query.message.edit_text(response)
     except Exception as e:
         loguru.logger.error(sys.exc_info())
 
@@ -121,7 +155,6 @@ async def task_update_handler(message: types.Message, state: FSMContext):
         data = {
             "text": message.text
         }
-        print(task_id[0])
         print(update_task(message.from_user.id, task_id=task_id[0], opts=data))
         await state.finish()
         await message.answer("Ok", reply_markup=main_btn())
