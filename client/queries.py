@@ -112,6 +112,9 @@ def update_task(user_id: int, task_id: int, opts: dict):
         elif "text" in opts:
             method_url = f"todos/{task_id}"
             method = 'patch'
+        elif "current_date" in opts:
+            method_url = f"todos/{task_id}/reposition"
+            method = 'post'
         params = {"user_id": user_id}
 
         r = _make_request(method_name=method_url, method=method,
@@ -149,7 +152,7 @@ def get_current_tasks(user_id: int) -> list[dict]:
 
         workspace = db.hget(user_id, 'workspace').decode()
 
-        custom_path = f"https://teuxdeux.com/api/v3/workspaces/{workspace}?since={today}"
+        custom_path = f"https://teuxdeux.com/api/v3/workspaces/{workspace}?since={today}&until={today}"
 
         r = _make_request(
             method_name=None, method='get', params=params, custom_url=custom_path)
