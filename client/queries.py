@@ -142,17 +142,18 @@ def get_all_tasks(user_id: int) -> dict:
         loguru.logger.error(str(sys.exc_info()))
 
 
-def get_current_tasks(user_id: int) -> list[dict]:
+def get_current_tasks(user_id: int, date=None) -> list[dict]:
     """Get current day tasks on todo list
     TODO: Add a selection of the day
     URL examples: https://teuxdeux.com/api/v3/workspaces/36456786?since=2021-7-27&until=2021-08-10"""
     try:
-        today = str(datetime.strftime(datetime.now(), "%Y-%m-%d"))
+        if not date:
+            date = str(datetime.strftime(datetime.now(), "%Y-%m-%d"))
         params = {"user_id": user_id}
 
         workspace = db.hget(user_id, 'workspace').decode()
 
-        custom_path = f"https://teuxdeux.com/api/v3/workspaces/{workspace}?since={today}&until={today}"
+        custom_path = f"https://teuxdeux.com/api/v3/workspaces/{workspace}?since={date}&until={date}"
 
         r = _make_request(
             method_name=None, method='get', params=params, custom_url=custom_path)
