@@ -49,6 +49,7 @@ async def text_handler(message: types.Message):
         await States.my_tasks.set()
         text = "Ваши задачи на сегодня:\n\n"
         todos = get_current_tasks(message.from_user.id)
+        # print(todos)
 
         for i, todo in enumerate(todos, 1):
             if todo["done"]:
@@ -74,8 +75,42 @@ async def new_task_handler(message: types.Message, state: FSMContext):
         loguru.logger.error(str(sys.exc_info()))
 
 
+buttons_date = None
+
+
 async def todo_callback_handler(query: types.CallbackQuery, state: FSMContext):
+    """TODO: delete current if else checkers next prev and add pagination"""
     try:
+        if query.data == "prev":
+            buttons_date = datetime.date.today() - datetime.timedelta(days=1)
+            todos = get_current_tasks(query.from_user.id, buttons_date)
+            text = f"Ваши задачи на {buttons_date}:\n\n"
+            # print(todos)
+
+            for i, todo in enumerate(todos, 1):
+                if todo["done"]:
+                    text += f"{i}. <u>{todo['text']}</u>\n"
+                else:
+                    text += f"{i}. {todo['text']}\n"
+            await States.my_tasks.set()
+            await query.message.edit_text(text, parse_mode="html", reply_markup=todo_menu(todos))
+            return
+        elif query.data == "next":
+            buttons_date = datetime.date.today() + datetime.timedelta(days=1)
+            print(buttons_date)
+            todos = get_current_tasks(query.from_user.id, buttons_date)
+            text = f"Ваши задачи на {buttons_date}:\n\n"
+            # print(todos)
+
+            for i, todo in enumerate(todos, 1):
+                if todo["done"]:
+                    text += f"{i}. <u>{todo['text']}</u>\n"
+                else:
+                    text += f"{i}. {todo['text']}\n"
+            await States.my_tasks.set()
+            await query.message.edit_text(text, parse_mode="html", reply_markup=todo_menu(todos))
+            return
+
         todos = get_all_tasks(query.from_user.id)
         text = ""
         for i, todo in enumerate(todos["todos"], 1):
