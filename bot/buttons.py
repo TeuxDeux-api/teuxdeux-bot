@@ -1,3 +1,5 @@
+import datetime
+
 from aiogram import types
 from aiogram.types.reply_keyboard import ReplyKeyboardMarkup
 
@@ -23,6 +25,12 @@ def todo_menu(todos: dict) -> types.InlineKeyboardMarkup:
         buttons.append(types.InlineKeyboardButton(
             i, callback_data=todo["id"]))
     menu.add(*buttons)
+    today = str(datetime.date.today())
+    if not todos[0]["current_date"] == today:
+        menu.row(types.InlineKeyboardButton("« Prev.", callback_data="prev"),
+                 types.InlineKeyboardButton("Next »", callback_data="next"))
+        return menu
+    menu.add(types.InlineKeyboardButton("Next »", callback_data="next"))
 
     return menu
 
