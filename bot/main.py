@@ -1,20 +1,16 @@
-import pathlib
-
-from aiogram.dispatcher import storage
-from bot.states import States
-import os
+import time
 
 import dotenv
-from aiogram import Bot, Dispatcher
-from aiogram.contrib.fsm_storage.files import PickleStorage
+from aiogram.dispatcher import storage
+from aiogram.utils import executor
 
+from bot.utils import auto_auth
 from bot.logger import logger_init
 from .handlers import authenticate_user, new_task_handler, start_handler, task_update_handler, text_handler, todo_callback_handler, todo_submenu_callback_handler
 from client.queries import db
+from bot.states import States
+from . import bot, dp
 
-
-# Load dotenv
-dotenv.load_dotenv()
 
 # Configure logging.
 # 4-levels for logging: INFO, DEBUG, WARNING, ERROR
@@ -25,10 +21,8 @@ async def main():
     """Main function"""
 
     # Initialize bot and dispatcher
-    bot = Bot(token=os.getenv("API_TOKEN"))
     try:
-        storage = PickleStorage("db.pickle")
-        dp = Dispatcher(bot, storage=storage)
+
         # start_handler register
         dp.register_message_handler(
             start_handler, commands={"start"}, state="*")
@@ -51,6 +45,7 @@ async def main():
         # task's text update handler
         dp.register_message_handler(
             task_update_handler, state=States.update_task)
+
         await dp.start_polling()
     finally:
         db.close()
