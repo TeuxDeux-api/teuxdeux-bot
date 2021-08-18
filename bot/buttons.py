@@ -17,7 +17,7 @@ def main_btn() -> ReplyKeyboardMarkup:
     return menu
 
 
-def todo_menu(todos: dict) -> types.InlineKeyboardMarkup:
+def todo_menu(todos: dict, tomorrow=True) -> types.InlineKeyboardMarkup:
     """Todo menu"""
     menu = types.InlineKeyboardMarkup(row_width=4)
     buttons = []
@@ -30,7 +30,10 @@ def todo_menu(todos: dict) -> types.InlineKeyboardMarkup:
         menu.row(types.InlineKeyboardButton("« Prev.", callback_data="prev"),
                  types.InlineKeyboardButton("Next »", callback_data="next"))
         return menu
-    menu.add(types.InlineKeyboardButton("Next »", callback_data="next"))
+    if tomorrow:
+        menu.add(types.InlineKeyboardButton("Next »", callback_data="next"))
+    else:
+        menu.add(types.InlineKeyboardButton("« Prev.", callback_data="prev"))
 
     return menu
 
