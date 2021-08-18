@@ -1,6 +1,6 @@
 import sys
 import json
-from datetime import datetime
+import datetime
 
 import bs4
 import dotenv
@@ -74,25 +74,6 @@ def _make_request(method_name, method='get', params=None, data=None, custom_url=
     return result.json()
 
 
-# def __init__(user_id: int) -> None:
-    try:
-        user_id = user_id
-
-        if db.hexists(user_id, 'workspace') and db.hexists(user_id, 'auth_token'):
-            workspace = db.hget(user_id, 'workspace').decode()
-            auth_token = db.hget(user_id, 'auth_token').decode()
-            headers = {
-                "Authorization": f"Bearer {auth_token}",
-                "Content-Type": "application/json"
-            }
-            exists = True
-        else:
-            exists = False
-
-    except Exception as e:
-        loguru.logger.debug(str(e))
-
-
 def new_task(user_id: int, task: dict) -> list[str]:
 
     params = {"user_id": user_id}
@@ -148,7 +129,8 @@ def get_current_tasks(user_id: int, date=None) -> list[dict]:
     URL examples: https://teuxdeux.com/api/v3/workspaces/36456786?since=2021-7-27&until=2021-08-10"""
     try:
         if not date:
-            date = str(datetime.strftime(datetime.now(), "%Y-%m-%d"))
+            date = str(datetime.datetime.strftime(
+                datetime.datetime.now(), "%Y-%m-%d"))
         params = {"user_id": user_id}
 
         workspace = db.hget(user_id, 'workspace').decode()
@@ -220,6 +202,11 @@ def auth_user_query(user_id: int, username: str, password: str):
         json_object = json.loads(el.contents[0])
         # Save the worcspace id from json_object
         db.hsetnx(user_id, 'workspace', json_object[0]["id"])
+        # # #
+        # Save username and password for authorization auto
+        db.hsetnx(user_id, 'username', username)
+        db.hsetnx(user_id, 'password', password)
+        db.hsetnx(user_id, 'last_auth_time', datetime.date.today())
         db.commit()
 
         # Print to console the success status code
