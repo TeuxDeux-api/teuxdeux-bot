@@ -4,11 +4,12 @@ import datetime
 import loguru
 from aiogram import types
 from aiogram.dispatcher.storage import FSMContext
+
 from client.queries import (auth_user_query, db, delete_task, get_all_tasks, delete_task,
                             get_current_tasks, get_task_by_id, new_task, update_task)
-
-from bot.buttons import back_btn, main_btn, todo_menu, todo_sub_menu
+from bot.buttons import main_btn, todo_menu, todo_sub_menu
 from bot.states import States
+from bot import utils
 
 
 async def start_handler(message: types.Message, state: FSMContext):
@@ -46,17 +47,22 @@ async def text_handler(message: types.Message):
         await States.new_task.set()
         await message.answer("Ok send me a task text")
     elif message.text == "My Tasks":
+        await utils.auto_auth(message.from_user.id)
         await States.my_tasks.set()
+        today = str(datetime.date.today())
         text = "Ваши задачи на сегодня:\n\n"
-        todos = get_current_tasks(message.from_user.id)
-        # print(todos)
+        todos = get_all_tasks(message.from_user.id)
 
-        for i, todo in enumerate(todos, 1):
-            if todo["done"]:
-                text += f"{i}. <u>{todo['text']}</u>\n"
-            else:
-                text += f"{i}. {todo['text']}\n"
-        await message.answer(text, parse_mode="html", reply_markup=todo_menu(todos))
+        todos_for_buttons = []
+
+        for i, todo in enumerate(todos["todos"], 1):
+            if today in todo["current_date"]:
+                if todo["done"]:
+                    text += f"{i}. <u>{todo['text']}</u>\n"
+                else:
+                    text += f"{i}. {todo['text']}\n"
+                todos_for_buttons.append(todo)
+        await message.answer(text, parse_mode="html", reply_markup=todo_menu(todos_for_buttons))
 
 
 async def new_task_handler(message: types.Message, state: FSMContext):
@@ -75,17 +81,27 @@ async def new_task_handler(message: types.Message, state: FSMContext):
         loguru.logger.error(str(sys.exc_info()))
 
 
-buttons_date = None
+buttons_date = datetime.date.today()
 
 
 async def todo_callback_handler(query: types.CallbackQuery, state: FSMContext):
-    """TODO: delete current if else checkers next prev and add pagination"""
+    global buttons_date
+
     try:
-        if query.data == "prev":
-            buttons_date = datetime.date.today() - datetime.timedelta(days=1)
-            todos = get_current_tasks(query.from_user.id, buttons_date)
+        if query.data == "next":
+            buttons_date = buttons_date + datetime.timedelta(days=1)
+            todos = utils.get_current_tasks(
+                query.from_user.id, str(buttons_date))
+
+            if not todos:
+                await States.my_tasks.set()
+                await query.answer(
+                    f"Нет задач на {buttons_date}",
+                    show_alert=True)
+                buttons_date = buttons_date - datetime.timedelta(days=1)
+                return
+
             text = f"Ваши задачи на {buttons_date}:\n\n"
-            # print(todos)
 
             for i, todo in enumerate(todos, 1):
                 if todo["done"]:
@@ -95,12 +111,14 @@ async def todo_callback_handler(query: types.CallbackQuery, state: FSMContext):
             await States.my_tasks.set()
             await query.message.edit_text(text, parse_mode="html", reply_markup=todo_menu(todos))
             return
-        elif query.data == "next":
-            buttons_date = datetime.date.today() + datetime.timedelta(days=1)
-            print(buttons_date)
-            todos = get_current_tasks(query.from_user.id, buttons_date)
-            text = f"Ваши задачи на {buttons_date}:\n\n"
-            # print(todos)
+        elif query.data == "prev":
+            buttons_date = buttons_date - datetime.timedelta(days=1)
+            todos = utils.get_current_tasks(
+                query.from_user.id, str(buttons_date))
+            if buttons_date == datetime.date.today():
+                text = "Ваши задачи на сегодня:\n\n"
+            else:
+                text = f"Ваши задачи на {buttons_date}:\n\n"
 
             for i, todo in enumerate(todos, 1):
                 if todo["done"]:
@@ -111,17 +129,16 @@ async def todo_callback_handler(query: types.CallbackQuery, state: FSMContext):
             await query.message.edit_text(text, parse_mode="html", reply_markup=todo_menu(todos))
             return
 
-        todos = get_all_tasks(query.from_user.id)
+        todo = get_task_by_id(query.from_user.id, query.data)["todo"]
         text = ""
-        for i, todo in enumerate(todos["todos"], 1):
-            if str(query.data) in str(todo["id"]):
-                if todo["done"]:
-                    text += f"<ins>{todo['text']}</ins>"
-                else:
-                    text += todo['text']
-                button = todo_sub_menu(todo)
+        if todo["done"]:
+            text += f"<ins>{todo['text']}</ins>"
+        else:
+            text += todo['text']
         await States.todo_submenu.set()
-        await query.message.edit_text(text, parse_mode="HTML", reply_markup=button)
+        await query.message.edit_text(text, parse_mode="HTML", reply_markup=todo_sub_menu(todo))
+
+        buttons_date = datetime.date.today()
 
     except Exception as e:
         loguru.logger.error(e)
@@ -193,5 +210,6 @@ async def task_update_handler(message: types.Message, state: FSMContext):
         print(update_task(message.from_user.id, task_id=task_id[0], opts=data))
         await state.finish()
         await message.answer("Ok", reply_markup=main_btn())
+        task_id.clear()
     except Exception as e:
         loguru.logger.debug(e)
